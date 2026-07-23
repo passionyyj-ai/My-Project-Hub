@@ -1,4 +1,4 @@
 window.MPH_CONFIG = {
   supabaseUrl: "https://fjpczzjrzxsyqolwfebh.supabase.co",
-  supabasePublishableKey: "PASTE_YOUR_SB_PUBLISHABLE_KEY_HERE"
+  supabasePublishableKey: "sb_publishable_fJyTf76jWyoKDaBjQNLU5g_9pP6a4H6"
 };
