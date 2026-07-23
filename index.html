@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#17324d">
+  <title>My Project Hub</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="loading" class="screen center"><div class="spinner"></div><p>불러오는 중입니다…</p></div>
+  <section id="setupScreen" class="screen center hidden">
+    <div class="auth-card"><div class="mark">P</div><h1>첫 연결 설정</h1><p>복사한 Supabase Publishable key를 아래에 한 번만 붙여넣으세요.</p><label>Publishable key<input id="setupKey" type="password" placeholder="sb_publishable_..." autocomplete="off"></label><button id="saveSetup" class="primary">연결 저장</button><p class="help">Secret key는 절대 입력하지 마세요.</p></div>
+  </section>
+  <section id="authScreen" class="screen center hidden">
+    <div class="auth-card"><div class="mark">P</div><p class="kicker">MY PROJECT HUB</p><h1>내 프로젝트를 한곳에서</h1><p>이메일로 로그인하면 PC와 휴대폰에서 같은 내용을 볼 수 있습니다.</p><label>이메일 주소<input id="email" type="email" placeholder="name@example.com" autocomplete="email"></label><button id="loginBtn" class="primary">로그인 링크 받기</button><p id="authMessage" class="message"></p><p class="help">처음 사용하는 이메일도 자동으로 가입됩니다.</p></div>
+  </section>
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand"><div class="mark small">P</div><div><strong>My Project Hub</strong><span>PROJECT WORKSPACE</span></div></div>
+      <label class="project-label">현재 프로젝트<select id="projectSelect"></select></label>
+      <button id="newProjectBtn" class="outline wide">＋ 새 프로젝트</button>
+      <nav id="nav">
+        <button data-view="overview" class="active">⌂ <span>전체 현황</span></button>
+        <button data-view="tasks">✓ <span>작업 목록</span></button>
+        <button data-view="documents">▤ <span>문서 관리</span></button>
+        <button data-view="roadmap">◇ <span>로드맵</span></button>
+        <button data-view="logs">▥ <span>개발 일지</span></button>
+        <button data-view="ideas">✦ <span>아이디어</span></button>
+        <button data-view="bugs">! <span>버그 관리</span></button>
+        <button data-view="releases">↑ <span>릴리즈</span></button>
+      </nav>
+      <div class="account"><span id="userEmail"></span><button id="logoutBtn">로그아웃</button></div>
+    </aside>
+    <main>
+      <header><div><p class="kicker" id="projectType">PROJECT</p><h1 id="projectTitle">프로젝트</h1><p id="projectGoal" class="muted"></p></div><div class="header-actions"><span id="syncState" class="sync">● 저장됨</span><button id="editProjectBtn" class="soft">프로젝트 수정</button></div></header>
+      <section id="overview" class="view active-view">
+        <div class="hero-grid"><article class="card progress-card"><div><p class="kicker">OVERALL PROGRESS</p><h2>전체 진행 상황</h2><p class="muted" id="progressText"></p></div><div class="ring" id="progressRing"><strong id="progressNumber">0%</strong></div></article><article class="card focus"><p class="kicker">NEXT FOCUS</p><h2 id="focusTitle">다음 작업을 등록하세요</h2><button data-jump="tasks">작업 목록 보기</button></article></div>
+        <div class="stats" id="stats"></div>
+        <article class="card section"><div class="section-head"><div><p class="kicker">PHASES</p><h2>단계별 진행률</h2></div><button data-add="phases" class="soft">＋ 단계 추가</button></div><div id="phaseList" class="list"></div></article>
+      </section>
+      <section id="tasks" class="view"><article class="card section"><div class="section-head"><h2>작업 목록</h2><button data-add="tasks" class="primary">＋ 작업 추가</button></div><div id="taskList" class="list"></div></article></section>
+      <section id="documents" class="view"><article class="card section"><div class="section-head"><h2>문서 관리</h2><button data-add="documents" class="primary">＋ 문서 추가</button></div><div id="documentList" class="list"></div></article></section>
+      <section id="roadmap" class="view"><article class="card section"><div class="section-head"><h2>로드맵</h2><button data-add="roadmap" class="primary">＋ 목표 추가</button></div><div id="roadmapList" class="list"></div></article></section>
+      <section id="logs" class="view"><article class="card section"><div class="section-head"><h2>개발 일지</h2><button data-add="logs" class="primary">＋ 일지 작성</button></div><div id="logList" class="list"></div></article></section>
+      <section id="ideas" class="view"><article class="card section"><div class="section-head"><h2>아이디어</h2><button data-add="ideas" class="primary">＋ 아이디어</button></div><div id="ideaList" class="list"></div></article></section>
+      <section id="bugs" class="view"><article class="card section"><div class="section-head"><h2>버그 관리</h2><button data-add="bugs" class="primary">＋ 버그 등록</button></div><div id="bugList" class="list"></div></article></section>
+      <section id="releases" class="view"><article class="card section"><div class="section-head"><h2>릴리즈 관리</h2><button data-add="releases" class="primary">＋ 릴리즈</button></div><div id="releaseList" class="list"></div></article></section>
+    </main>
+    <nav class="mobile-nav"><button data-view="overview" class="active">⌂<span>현황</span></button><button data-view="tasks">✓<span>작업</span></button><button data-view="roadmap">◇<span>로드맵</span></button><button data-view="logs">▥<span>일지</span></button><button data-view="ideas">✦<span>더보기</span></button></nav>
+  </div>
+  <div id="modalWrap" class="modal-wrap hidden"><form id="modalForm" class="modal"><button id="modalClose" type="button" class="close">×</button><p class="kicker">MY PROJECT HUB</p><h2 id="modalTitle">항목 추가</h2><div id="modalFields"></div><div class="modal-actions"><button id="modalCancel" type="button" class="soft">취소</button><button type="submit" class="primary">저장하기</button></div></form></div>
+  <div id="toast" class="toast hidden"></div>
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
