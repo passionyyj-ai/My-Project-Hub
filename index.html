@@ -13,7 +13,7 @@
     <div class="auth-card"><div class="mark">P</div><h1>첫 연결 설정</h1><p>복사한 Supabase Publishable key를 아래에 한 번만 붙여넣으세요.</p><label>Publishable key<input id="setupKey" type="password" placeholder="sb_publishable_..." autocomplete="off"></label><button id="saveSetup" class="primary">연결 저장</button><p class="help">Secret key는 절대 입력하지 마세요.</p></div>
   </section>
   <section id="authScreen" class="screen center hidden">
-    <div class="auth-card"><div class="mark">P</div><p class="kicker">MY PROJECT HUB</p><h1>내 프로젝트를 한곳에서</h1><p>이메일로 로그인하면 PC와 휴대폰에서 같은 내용을 볼 수 있습니다.</p><label>이메일 주소<input id="email" type="email" placeholder="name@example.com" autocomplete="email"></label><button id="loginBtn" class="primary">로그인 링크 받기</button><p id="authMessage" class="message"></p><p class="help">처음 사용하는 이메일도 자동으로 가입됩니다.</p></div>
+    <div class="auth-card"><div class="mark">P</div><p class="kicker">MY PROJECT HUB</p><h1>내 프로젝트를 한곳에서</h1><p>이제 이메일을 기다리지 않고 비밀번호로 바로 로그인할 수 있습니다.</p><label>이메일 주소<input id="email" type="email" placeholder="name@example.com" autocomplete="email"></label><label>비밀번호<input id="password" type="password" placeholder="6자 이상" autocomplete="current-password"></label><button id="loginBtn" class="primary">바로 로그인</button><button id="resetPasswordBtn" class="auth-secondary">처음 사용하거나 비밀번호를 잊었어요</button><details class="auth-backup"><summary>이메일 로그인 링크 사용</summary><button id="magicLinkBtn" class="auth-link" type="button">로그인 링크 한 번 받기</button></details><p id="authMessage" class="message"></p><p class="help">한 번 로그인하면 이 기기에서는 로그인 상태가 유지됩니다.</p></div>
   </section>
   <div id="app" class="app hidden">
     <aside class="sidebar">
@@ -32,7 +32,7 @@
         <button data-view="bugs">! <span>버그 관리</span></button>
         <button data-view="releases">↑ <span>릴리즈</span></button>
       </nav>
-      <div class="account"><span id="userEmail"></span><button id="logoutBtn">로그아웃</button></div>
+      <div class="account"><span id="userEmail"></span><button id="setPasswordBtn">비밀번호 설정</button><button id="logoutBtn">로그아웃</button></div>
     </aside>
     <main>
       <header><div><p class="kicker" id="projectType">PROJECT</p><h1 id="projectTitle">프로젝트</h1><p id="projectGoal" class="muted"></p></div><div class="header-actions"><span id="syncState" class="sync">● 저장됨</span><button id="editProjectBtn" class="soft">프로젝트 수정</button></div></header>
