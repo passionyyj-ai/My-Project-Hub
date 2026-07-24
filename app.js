@@ -40,6 +40,36 @@ const labels={phases:'단계 추가',tasks:'작업 추가',documents:'문서 추
 function openModal(kind,edit=false){modalKind=kind;editProject=edit;$('modalWrap').classList.remove('hidden');$('modalTitle').textContent=edit?'프로젝트 수정':labels[kind]||'새 프로젝트';if(kind==='project'){const p=edit?current():null;$('modalFields').innerHTML=`<label>프로젝트명<input name="title" required value="${esc(p?.title||'')}"></label><label>종류<input name="type" value="${esc(p?.data.type||'일반 프로젝트')}"></label><label>목표<textarea name="goal">${esc(p?.data.goal||'')}</textarea></label>`}else if(kind==='phases')$('modalFields').innerHTML='<label>단계명<input name="title" required></label><label>진행률<input name="progress" type="number" min="0" max="100" value="0"></label>';else $('modalFields').innerHTML=`<label>제목<input name="title" required></label><label>설명<textarea name="detail"></textarea></label>${kind==='documents'?'<label>상태<select name="status"><option>예정</option><option>진행 중</option><option>완료</option></select></label><label>산출물 파일<input name="artifact" type="file" required accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.png,.jpg,.jpeg,.webp,.zip,application/pdf,image/*"></label><p class="upload-help">최대 20MB · 문서, 이미지, ZIP 파일을 보관할 수 있습니다.</p>':''}`}
 function closeModal(){$('modalWrap').classList.add('hidden');$('modalForm').reset()}
 $('newProjectBtn').onclick=()=>openModal('project',false);$('editProjectBtn').onclick=()=>openModal('project',true);$('modalClose').onclick=$('modalCancel').onclick=closeModal;
+$('updatePackageBtn').onclick=()=>$('updatePackageFile').click();
+$('updatePackageFile').onchange=async e=>{const file=e.target.files?.[0];e.target.value='';if(file)await importUpdatePackage(file)};
 $('modalForm').onsubmit=async e=>{e.preventDefault();const form=new FormData(e.target),f=Object.fromEntries(form);if(modalKind==='project'){if(editProject){current().title=f.title;current().data.type=f.type;current().data.goal=f.goal;render();save()}else await createProject(f.title,{...emptyData(),type:f.type,goal:f.goal});closeModal();return}const item={id:crypto.randomUUID(),title:f.title,detail:f.detail||'',date:new Date().toLocaleDateString('ko-KR')};if(modalKind==='phases')current().data.phases.push({id:item.id,name:f.title,progress:Number(f.progress)||0});else if(modalKind==='tasks')current().data.tasks.push({...item,done:false});else if(modalKind==='documents'){const file=form.get('artifact');if(!(file instanceof File)||!file.size)return toast('첨부할 파일을 선택해 주세요.');if(file.size>20971520)return toast('파일은 20MB 이하만 업로드할 수 있습니다.');const safeName=file.name.normalize('NFC').replace(/[^\p{L}\p{N}._-]+/gu,'_');const storagePath=`${currentId}/${crypto.randomUUID()}-${safeName}`;setSync('파일 업로드 중','saving');const {error}=await supabase.storage.from('mph-project-files').upload(storagePath,file,{contentType:file.type||'application/octet-stream',upsert:false});if(error)return fail(error);current().data.documents.unshift({...item,status:f.status||'예정',fileName:file.name,size:file.size,mimeType:file.type,storagePath,createdAt:new Date().toISOString()})}else current().data[modalKind].unshift({...item,status:f.status});closeModal();render();save()};
 function toast(t){$('toast').textContent=t;$('toast').classList.remove('hidden');setTimeout(()=>$('toast').classList.add('hidden'),3500)}
+async function importUpdatePackage(file){
+  let pack;
+  try{pack=JSON.parse(await file.text())}catch{return toast('올바른 업데이트 파일이 아닙니다.')}
+  if(pack.schema!=='mph-update-v1'||!pack.updateId)return toast('지원하지 않는 업데이트 형식입니다.');
+  const p=current();if(!p)return toast('먼저 프로젝트를 선택해 주세요.');
+  if(pack.projectTitle&&pack.projectTitle!==p.title&&!confirm(`이 파일은 “${pack.projectTitle}” 프로젝트용입니다.\n현재 “${p.title}”에 반영할까요?`))return;
+  const count=(pack.tasks?.length||0)+(pack.documents?.length||0)+(pack.logs?.length||0)+(pack.ideas?.length||0)+(pack.bugs?.length||0)+(pack.releases?.length||0);
+  if(!confirm(`개발 결과를 한 번에 반영합니다.\n\n진행률 ${pack.phases?.length||0}개\n기록·문서 ${count}개\n\n계속할까요?`))return;
+  setSync('개발 결과 반영 중','saving');
+  try{
+    for(const phase of pack.phases||[]){const found=p.data.phases.find(x=>x.name===phase.name);if(found)found.progress=Math.max(0,Math.min(100,Number(phase.progress)||0));else p.data.phases.push({id:crypto.randomUUID(),name:phase.name,progress:Number(phase.progress)||0})}
+    mergeUpdates(p.data.tasks,pack.tasks||[],x=>({...x,id:x.id||crypto.randomUUID(),done:Boolean(x.done)}));
+    for(const doc of pack.documents||[]){
+      const existing=p.data.documents.find(x=>x.sourceId===doc.sourceId||x.title===doc.title);
+      if(existing?.storagePath)continue;
+      let storagePath='';
+      if(doc.contentBase64){const bytes=base64Bytes(doc.contentBase64);if(bytes.byteLength>20971520)throw new Error(`${doc.fileName||doc.title} 파일이 20MB를 초과합니다.`);const safe=(doc.fileName||`${doc.title}.txt`).normalize('NFC').replace(/[^\p{L}\p{N}._-]+/gu,'_');storagePath=`${currentId}/${crypto.randomUUID()}-${safe}`;const blob=new Blob([bytes],{type:doc.mimeType||'application/octet-stream'});const {error}=await supabase.storage.from('mph-project-files').upload(storagePath,blob,{contentType:blob.type,upsert:false});if(error)throw error}
+      const item={id:existing?.id||crypto.randomUUID(),sourceId:doc.sourceId||`${pack.updateId}:${doc.title}`,title:doc.title,detail:doc.detail||'',status:doc.status||'완료',date:doc.date||new Date().toLocaleDateString('ko-KR'),fileName:doc.fileName||'',size:doc.size||0,mimeType:doc.mimeType||'',storagePath};
+      if(existing)Object.assign(existing,item);else p.data.documents.unshift(item);
+    }
+    for(const key of ['logs','ideas','bugs','releases'])mergeUpdates(p.data[key],pack[key]||[],x=>({...x,id:x.id||crypto.randomUUID(),date:x.date||new Date().toLocaleDateString('ko-KR')}));
+    if(pack.nextTask)mergeUpdates(p.data.tasks,[{...pack.nextTask,done:false}],x=>({...x,id:x.id||crypto.randomUUID(),done:false}));
+    const history=p.data.importedUpdates||(p.data.importedUpdates=[]);if(!history.includes(pack.updateId))history.push(pack.updateId);
+    render();save();toast('개발 결과와 산출물을 반영했습니다.');switchView('overview');
+  }catch(error){fail(error)}
+}
+function mergeUpdates(target,incoming,normalize){for(const raw of incoming){const sourceId=raw.sourceId||raw.id;let found=target.find(x=>(sourceId&&x.sourceId===sourceId)||x.title===raw.title);const item=normalize({...raw,sourceId:sourceId||raw.title});if(found)Object.assign(found,item);else target.unshift(item)}}
+function base64Bytes(text){const binary=atob(text.replace(/\s/g,'')),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes}
 boot();
