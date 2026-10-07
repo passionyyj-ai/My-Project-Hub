@@ -16,12 +16,16 @@
     <div class="auth-card"><div class="mark">P</div><p class="kicker">MY PROJECT HUB</p><h1>내 프로젝트를 한곳에서</h1><p>이제 이메일을 기다리지 않고 비밀번호로 바로 로그인할 수 있습니다.</p><label>이메일 주소<input id="email" type="email" placeholder="name@example.com" autocomplete="email"></label><label>비밀번호<input id="password" type="password" placeholder="6자 이상" autocomplete="current-password"></label><button id="loginBtn" class="primary">바로 로그인</button><button id="resetPasswordBtn" class="auth-secondary">처음 사용하거나 비밀번호를 잊었어요</button><details class="auth-backup"><summary>이메일 로그인 링크 사용</summary><button id="magicLinkBtn" class="auth-link" type="button">로그인 링크 한 번 받기</button></details><p id="authMessage" class="message"></p><p class="help">한 번 로그인하면 이 기기에서는 로그인 상태가 유지됩니다.</p></div>
   </section>
   <div id="app" class="app hidden">
+    <button id="menuBackdrop" class="menu-backdrop" aria-label="메뉴 닫기"></button>
     <aside class="sidebar">
+      <button id="menuClose" class="menu-close" aria-label="메뉴 닫기">×</button>
       <div class="brand"><div class="mark small">P</div><div><strong>My Project Hub</strong><span>PROJECT WORKSPACE</span></div></div>
       <label class="project-label">현재 프로젝트<select id="projectSelect"></select></label>
       <button id="newProjectBtn" class="outline wide">＋ 새 프로젝트</button>
       <button id="updatePackageBtn" class="import-update wide">⇩ 개발 결과 한 번에 반영</button>
       <input id="updatePackageFile" type="file" accept=".json,.mph" hidden>
+      <div class="backup-actions"><button id="exportBackupBtn" class="outline">백업 내보내기</button><button id="restoreBackupBtn" class="outline">백업 복원</button></div>
+      <input id="restoreBackupFile" type="file" accept=".json" hidden>
       <nav id="nav">
         <button data-view="overview" class="active">⌂ <span>전체 현황</span></button>
         <button data-view="tasks">✓ <span>작업 목록</span></button>
@@ -35,7 +39,8 @@
       <div class="account"><span id="userEmail"></span><button id="setPasswordBtn">비밀번호 설정</button><button id="logoutBtn">로그아웃</button></div>
     </aside>
     <main>
-      <header><div><p class="kicker" id="projectType">PROJECT</p><h1 id="projectTitle">프로젝트</h1><p id="projectGoal" class="muted"></p></div><div class="header-actions"><span id="syncState" class="sync">● 저장됨</span><button id="editProjectBtn" class="soft">프로젝트 수정</button></div></header>
+      <header><div><p class="kicker" id="projectType">PROJECT</p><h1 id="projectTitle">프로젝트</h1><p id="projectGoal" class="muted"></p></div><div class="header-actions"><button id="syncState" class="sync soft" title="저장 재시도 및 충돌 확인">● 저장됨</button><button id="editProjectBtn" class="soft">프로젝트 수정</button></div></header>
+      <div class="search-tools"><label>항목 검색<input id="searchInput" type="search" placeholder="제목·설명·파일명 검색"></label><label>작업 상태<select id="taskStatusFilter"><option value="all">전체</option><option value="open">미완료</option><option value="done">완료</option></select></label><label>작업 우선순위<select id="priorityFilter"><option value="all">전체</option><option>높음</option><option>보통</option><option>낮음</option></select></label><label>정렬<select id="sortSelect"><option value="default">기본 순서</option><option value="due">기한순</option><option value="priority">우선순위순</option><option value="title">제목순</option></select></label></div>
       <section id="overview" class="view active-view">
         <div class="hero-grid"><article class="card progress-card"><div><p class="kicker">OVERALL PROGRESS</p><h2>전체 진행 상황</h2><p class="muted" id="progressText"></p></div><div class="ring" id="progressRing"><strong id="progressNumber">0%</strong></div></article><article class="card focus"><p class="kicker">NEXT FOCUS</p><h2 id="focusTitle">다음 작업을 등록하세요</h2><button data-jump="tasks">작업 목록 보기</button></article></div>
         <div class="stats" id="stats"></div>
@@ -49,7 +54,7 @@
       <section id="bugs" class="view"><article class="card section"><div class="section-head"><h2>버그 관리</h2><button data-add="bugs" class="primary">＋ 버그 등록</button></div><div id="bugList" class="list"></div></article></section>
       <section id="releases" class="view"><article class="card section"><div class="section-head"><h2>릴리즈 관리</h2><button data-add="releases" class="primary">＋ 릴리즈</button></div><div id="releaseList" class="list"></div></article></section>
     </main>
-    <nav class="mobile-nav"><button data-view="overview" class="active">⌂<span>현황</span></button><button data-view="tasks">✓<span>작업</span></button><button data-view="roadmap">◇<span>로드맵</span></button><button data-view="logs">▥<span>일지</span></button><button data-view="ideas">✦<span>더보기</span></button></nav>
+    <nav class="mobile-nav"><button data-view="overview" class="active">⌂<span>현황</span></button><button data-view="tasks">✓<span>작업</span></button><button data-view="roadmap">◇<span>로드맵</span></button><button data-view="logs">▥<span>일지</span></button><button id="mobileMenuBtn" aria-label="전체 메뉴 열기">☰<span>전체 메뉴</span></button></nav>
   </div>
   <div id="modalWrap" class="modal-wrap hidden"><form id="modalForm" class="modal"><button id="modalClose" type="button" class="close">×</button><p class="kicker">MY PROJECT HUB</p><h2 id="modalTitle">항목 추가</h2><div id="modalFields"></div><div class="modal-actions"><button id="modalCancel" type="button" class="soft">취소</button><button type="submit" class="primary">저장하기</button></div></form></div>
   <div id="toast" class="toast hidden"></div>

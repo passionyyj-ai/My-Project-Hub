@@ -10,7 +10,7 @@ const seedData=()=>({goal:'누구나 쉽고 편안하게 사용할 수 있는 AI
 function show(id){['loading','setupScreen','authScreen','app'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
 function configured(){return C.supabaseUrl?.startsWith('https://')&&(C.supabasePublishableKey?.startsWith('sb_publishable_')||localStorage.getItem(KEY_STORE)?.startsWith('sb_publishable_'))}
 function initClient(){supabase=createClient(C.supabaseUrl,C.supabasePublishableKey?.startsWith('sb_publishable_')?C.supabasePublishableKey:localStorage.getItem(KEY_STORE),{auth:{persistSession:true,detectSessionInUrl:true}})}
-async function boot(){if(!configured()){show('setupScreen');return}initClient();const {data:{session}}=await supabase.auth.getSession();if(!session){show('authScreen')}else await enter(session.user);supabase.auth.onAuthStateChange(async(event,session)=>{if(session&&!user)await enter(session.user);if(event==='PASSWORD_RECOVERY')setTimeout(()=>$('setPasswordBtn').click(),500);if(!session&&user){user=null;show('authScreen')}})}
+async function boot(){if(!configured()){show('setupScreen');return}initClient();const {data:{session}}=await supabase.auth.getSession();if(!session){show('authScreen')}else await enter(session.user);supabase.auth.onAuthStateChange((event,session)=>{if(session&&!user)setTimeout(()=>enter(session.user).catch(fail),0);if(event==='PASSWORD_RECOVERY')setTimeout(()=>$('setPasswordBtn').click(),500);if(!session&&user){user=null;rows=[];currentId=null;if(channel){supabase.removeChannel(channel);channel=null}show('authScreen')}})}
 $('saveSetup').onclick=()=>{const k=$('setupKey').value.trim();if(!k.startsWith('sb_publishable_'))return alert('sb_publishable_로 시작하는 키를 입력해 주세요.');localStorage.setItem(KEY_STORE,k);location.reload()};
 $('loginBtn').onclick=async()=>{const email=$('email').value.trim(),password=$('password').value;if(!email||!password)return authMessage('이메일과 비밀번호를 입력해 주세요.');$('loginBtn').disabled=true;authMessage('로그인 중입니다…');const {error}=await supabase.auth.signInWithPassword({email,password});$('loginBtn').disabled=false;authMessage(error?friendlyAuthError(error):'로그인되었습니다.')};
 $('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});
@@ -79,4 +79,17 @@ async function importUpdatePackage(file){
 }
 function mergeUpdates(target,incoming,normalize){for(const raw of incoming){const sourceId=raw.sourceId||raw.id;let found=target.find(x=>(sourceId&&x.sourceId===sourceId)||x.title===raw.title);const item=normalize({...raw,sourceId:sourceId||raw.title});if(found)Object.assign(found,item);else target.unshift(item)}}
 function base64Bytes(text){const binary=atob(text.replace(/\s/g,'')),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes}
-boot();
+// Keep the original package importer compatible with the enhanced workspace.
+import { enhance } from './workspace.js';
+enhance({
+  $, esc, emptyData, normalize, toast, fail, setSync, openArtifact, base64Bytes,
+  getState:()=>({supabase,user,rows,currentId,channel}),
+  setRows:value=>{rows=value}, setCurrent:value=>{currentId=value},
+  setChannel:value=>{channel=value},
+  install:api=>{
+    save=api.save; loadProjects=api.loadProjects; subscribe=api.subscribe;
+    renderList=api.renderList; openModal=api.openModal; closeModal=api.closeModal;
+    createProject=api.createProject; importUpdatePackage=api.importUpdatePackage;
+  }, render:()=>render(), switchView:id=>switchView(id)
+});
+boot().catch(fail);
