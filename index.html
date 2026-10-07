@@ -23,7 +23,7 @@
       <label class="project-label">현재 프로젝트<select id="projectSelect"></select></label>
       <button id="newProjectBtn" class="outline wide">＋ 새 프로젝트</button>
       <button id="updatePackageBtn" class="import-update wide">⇩ 개발 결과 한 번에 반영</button>
-      <input id="updatePackageFile" type="file" accept=".json,.mph" hidden>
+      <input id="updatePackageFile" type="file" accept=".json,.mph,.zip" hidden>
       <div class="backup-actions"><button id="exportBackupBtn" class="outline">백업 내보내기</button><button id="restoreBackupBtn" class="outline">백업 복원</button></div>
       <input id="restoreBackupFile" type="file" accept=".json" hidden>
       <nav id="nav">
@@ -60,6 +60,5 @@
   <div id="toast" class="toast hidden"></div>
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>
-  <script type="module" src="self-update.js"></script>
 </body>
 </html>

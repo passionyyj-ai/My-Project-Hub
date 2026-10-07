@@ -4,7 +4,7 @@ const clone=value=>JSON.parse(JSON.stringify(value));
 export function enhance(ctx){
   const {$,esc,toast,setSync}=ctx;
   const state=ctx.getState;
-  let pending={},busy=false,retryTimer,editId=null,modalProject=null,query='',status='all',priority='all',sort='default';
+  let pending={},busy=false,importBusy=false,retryTimer,editId=null,modalProject=null,query='',status='all',priority='all',sort='default';
   const cacheKey=()=>`mph-cache-v2:${state().user.id}`;
   const pendingKey=()=>`mph-pending-v2:${state().user.id}`;
   const read=key=>{try{return JSON.parse(localStorage.getItem(key)||'null')}catch{return null}};
@@ -185,24 +185,48 @@ export function enhance(ctx){
   }
   $('exportBackupBtn').onclick=exportBackup;$('restoreBackupBtn').onclick=()=>$('restoreBackupFile').click();$('restoreBackupFile').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(file)await restore(file)};
   async function importUpdatePackage(file){
-    const original=current();if(!original)return;
-    let uploaded=[];
+    const project=current(),ownerId=state().user?.id;if(!project||!ownerId)return;
     try{
-      const pack=JSON.parse(await file.text());if(pack.schema!=='mph-update-v1'||!pack.updateId)throw new Error('지원하지 않는 업데이트 형식입니다.');
-      if(original.data.importedUpdates?.includes(pack.updateId))return toast('이미 반영한 업데이트입니다.');
+      if(file.name?.toLowerCase().endsWith('.zip')){
+        const {openResultImport}=await import('./result-import.js');
+        return await openResultImport(file,{project:{id:project.id,title:project.title},apply:pack=>applyUpdatePackage(pack,{projectId:project.id,ownerId,confirmImport:false})});
+      }
+      const pack=JSON.parse(await file.text());
+      const result=await applyUpdatePackage(pack,{projectId:project.id,ownerId});
+      if(result?.status==='duplicate')toast('이미 반영한 업데이트입니다.');
+      else if(result?.status==='saved')toast('개발 결과를 저장했습니다.');
+      else if(result?.status==='pending')toast('개발 결과를 반영했습니다. 클라우드 저장 대기 중입니다.');
+      return result;
+    }catch(error){ctx.fail(error)}
+  }
+  async function applyUpdatePackage(pack,{projectId=state().currentId,ownerId=state().user?.id,confirmImport=true}={}){
+    const original=state().rows.find(x=>x.id===projectId);
+    if(!original||!ownerId||state().user?.id!==ownerId)throw new Error('로그인 상태 또는 반영할 프로젝트가 변경되었습니다. 파일을 다시 선택해 주세요.');
+    if(importBusy)throw new Error('다른 개발 결과를 반영 중입니다. 완료 후 다시 시도해 주세요.');
+    let uploaded=[],committed=false;importBusy=true;
+    try{
+      if(!pack||pack.schema!=='mph-update-v1'||typeof pack.updateId!=='string'||!pack.updateId)throw new Error('지원하지 않는 업데이트 형식입니다.');
+      if(original.data.importedUpdates?.includes(pack.updateId))return {status:'duplicate'};
       for(const key of keys)if(pack[key]!==undefined&&(!Array.isArray(pack[key])||pack[key].some(x=>!x||typeof (key==='phases'?x.name:x.title)!=='string')))throw new Error('업데이트 항목 형식이 잘못되었습니다.');
-      if(!confirm(`“${pack.projectTitle||original.title}” 개발 결과를 현재 “${original.title}”에 반영할까요?`))return;
-      const draft=clone(original);
+      if(pack.nextTask&&typeof pack.nextTask.title!=='string')throw new Error('다음 작업 형식 오류');
+      if(confirmImport&&!confirm(`“${pack.projectTitle||original.title}” 개발 결과를 현재 “${original.title}”에 반영할까요?`))return {status:'cancelled'};
+      const baseline=JSON.stringify(original.data),draft=clone(original);
       for(const key of keys)for(const raw of pack[key]||[]){
-        const found=draft.data[key].find(x=>(raw.sourceId&&x.sourceId===raw.sourceId)||(raw.id&&x.id===raw.id)||(key==='phases'?x.name===raw.name:x.title===raw.title));
+        const found=draft.data[key].find(x=>raw.sourceId?x.sourceId===raw.sourceId:raw.id?x.id===raw.id:(key==='phases'?x.name===raw.name:x.title===raw.title));
         const item={...found,...raw,id:found?.id||raw.id||crypto.randomUUID()};
         if(key==='phases')item.progress=Math.max(0,Math.min(100,Number(item.progress)||0));
-        if(key==='documents'&&raw.contentBase64){const bytes=ctx.base64Bytes(raw.contentBase64);if(bytes.length>20971520)throw new Error('파일은 20MB 이하만 가능합니다.');const path=`${original.id}/${crypto.randomUUID()}-${(raw.fileName||'attachment').replace(/[^\p{L}\p{N}._-]+/gu,'_')}`;const {error}=await state().supabase.storage.from('mph-project-files').upload(path,new Blob([bytes],{type:raw.mimeType||'application/octet-stream'}));if(error)throw error;uploaded.push(path);item.storagePath=path;item.size=bytes.length;delete item.contentBase64}
+        if(key==='documents'&&typeof raw.contentBase64==='string'){const bytes=ctx.base64Bytes(raw.contentBase64);if(bytes.length>20971520)throw new Error('파일은 20MB 이하만 가능합니다.');const path=`${original.id}/${crypto.randomUUID()}-${(raw.fileName||'attachment').replace(/[^\p{L}\p{N}._-]+/gu,'_')}`;const {error}=await state().supabase.storage.from('mph-project-files').upload(path,new Blob([bytes],{type:raw.mimeType||'application/octet-stream'}));if(error)throw error;uploaded.push(path);item.storagePath=path;item.size=bytes.length;delete item.contentBase64}
         if(found)Object.assign(found,item);else draft.data[key].unshift(item);
       }
       if(pack.nextTask){if(typeof pack.nextTask.title!=='string')throw new Error('다음 작업 형식 오류');const task=pack.nextTask;const found=draft.data.tasks.find(x=>x.title===task.title);if(found)Object.assign(found,task,{done:false});else draft.data.tasks.unshift({...task,id:crypto.randomUUID(),done:false})}
-      draft.data.importedUpdates=[...(draft.data.importedUpdates||[]),pack.updateId];original.data=draft.data;save(original);ctx.render();toast('개발 결과를 반영했습니다.');
-    }catch(error){if(uploaded.length)await state().supabase.storage.from('mph-project-files').remove(uploaded);ctx.fail(error)}
+      const live=state().rows.find(x=>x.id===projectId);
+      if(state().user?.id!==ownerId||!live||JSON.stringify(live.data)!==baseline)throw new Error('반영 도중 프로젝트 내용 또는 로그인 상태가 변경되었습니다. 다시 시도해 주세요.');
+      draft.data.importedUpdates=[...(draft.data.importedUpdates||[]),pack.updateId];live.data=draft.data;save(live);committed=true;ctx.render();await flush();
+      return {status:pending[projectId]?'pending':'saved'};
+    }catch(error){
+      if(uploaded.length&&!committed){try{await state().supabase.storage.from('mph-project-files').remove(uploaded)}catch{}}
+      throw error;
+    }finally{importBusy=false}
   }
-  ctx.install({save,loadProjects,subscribe,createProject,renderList,openModal,closeModal,importUpdatePackage});
+  ctx.install({save,loadProjects,subscribe,createProject,renderList,openModal,closeModal,importUpdatePackage,applyUpdatePackage});
 }
